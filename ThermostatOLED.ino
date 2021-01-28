@@ -70,7 +70,9 @@ byte state=s0_NONE;
 
 byte t_N=0;
 //const uint16_t Ts[]={};
-const uint16_t Ts[]={179,180,199,200,220,230,240,249,250};
+const uint16_t Ts[]={180,200,220,250};
+//for test:  230,240 has different speed near target.  179,199, 249 does off LCD for save it and power
+//const uint16_t Ts[]={179,180,199,200,220,230,240,249,250};
 
 
 uint16_t s2_WAIT_while_hiT_dt=10000;
