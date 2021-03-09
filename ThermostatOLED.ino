@@ -1,13 +1,11 @@
-//now A 2.5*12 v=30W = 20sec to 250C
-// for 3.5v need 10-15A  для сравнения: в эл. сигар. сопротивление 0.1-0.4 Ом
 
-/*
+/*now A 2.5*12 v=30W = 20sec to 250C
+ for 3.5v need 10-15A  для сравнения: в эл. сигар. сопротивление 0.1-0.4 Ом
+
  если будет нагреваться за 5-15 сек. отлично.
-*/
-/*
+
 ESP https://tinkerman.cat/post/eeprom-rotation-for-esp8266-and-esp32/
 */
-
 #define debug
 
 #define LCD_active_only_on_input // if not LCD also will be active while play and rec  
@@ -19,10 +17,10 @@ ESP https://tinkerman.cat/post/eeprom-rotation-for-esp8266-and-esp32/
 #define th_p		A0
 #include <Thermistor.h>
 #include <NTC_Thermistor.h>
-#define REFERENCE_RESISTANCE   10030
-#define NOMINAL_RESISTANCE     100000
-#define NOMINAL_TEMPERATURE    25
-#define B_VALUE                3950
+#define REFERENCE_RESISTANCE	10030
+#define NOMINAL_RESISTANCE		100000
+#define NOMINAL_TEMPERATURE		25
+#define B_VALUE					3950
 
 
 #define btn_next_T	6
@@ -83,12 +81,9 @@ uint16_t T_s3_COOL=40;
 double T=0;
 uint16_t T_need=0;
 
-//uint16_t T_select=0;
-
 long LCD_next_off_t=10000;
 
 float ta_avg=20;
-
 
 bool bbtn_wait_off=false;
 double dT=0;
@@ -130,7 +125,7 @@ void setup() {
 
 #ifdef useOLED
 	if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-		#ifndef save_mem
+		#ifdef debug
 		Serial.println(F("oled alloc fail"));
 		#endif
 	}
@@ -153,17 +148,21 @@ thermistor = new NTC_Thermistor(
   
   if(t>300 || t<-30)
   {
+	  #ifdef debug
 	  Serial.print("thermistor err: ");
 	  Serial.print(analogRead(th_p)); tab
 	  Serial.println(t);
+	  #endif
 	  blink_p_E(LED_BUILTIN, 5);
   }
   if(!digitalRead(btn_next_T) && !digitalRead(btn_start))
   {
+	  #ifdef debug
 	  Serial.print("buttons have to be normal open: ");
 	  Serial.print(digitalRead(btn_next_T)); tab
 	  Serial.print(digitalRead(btn_start)); tab
 	  Serial.println(t);
+	  #endif
 	  blink_p_E(LED_BUILTIN, 10);
   }
   
@@ -175,7 +174,6 @@ thermistor = new NTC_Thermistor(
 
 void heat(){
  state=s1_HEAT;
- analogWrite(pw_p,10);
  digitalWrite(fan_p, 0);
  s1_HEAT_start_t0=millis();
  
@@ -198,30 +196,33 @@ void off(){
  digitalWrite(fan_p, 0);
 }
 
-void LCD_hold_for(uint16_t dt)
-{
-	LCD_next_off_t=millis()+dt;
+void LCD_hold_for(uint16_t dt){
+ LCD_next_off_t=millis()+dt;
 }
 
 
 
 void loop() {
-	while(	abs(T_last-thermistor->readCelsius())>300 )
+	double T_tmp=0;
+	#define AVG_E	2
+	for(byte i=0; i<AVG_E;i++)
 	{
-		//err reading
+		double t=thermistor->readCelsius();
+		if(abs(T_last-t)>300) continue;		//err reading
+		T_tmp+=t;
 	}
-	
-	T=T*0.5+(thermistor->readCelsius()+thermistor->readCelsius())/4;
+	T=T*0.5+T_tmp/(2*AVG_E);
 	if(millis()>dT_next_check_t)
 	{
 		dT_next_check_t=millis()+300;
 		dT=T-T_last;
 		T_last=T;
 	}
-
+																											#ifdef debug
 																											//Serial.print(thermistor->readCelsius());tab
 																											//Serial.print(T);tab
 																											//Serial.println();
+																											#endif
 //---------------------------------------------- check states
 	if(state==s1_HEAT || state==s2_WAIT) //thermostat
 	{
@@ -343,61 +344,61 @@ if(millis()>LCD_next_upd_t)
 	
 	display.clearDisplay();
 	
-if(millis()>LCD_next_off_t && (Ts[t_N]==179 || Ts[t_N]==199 || Ts[t_N]==249)) //off LCD only if selected: 179 199 249
-{
-	display.display();
-}
-else
-{
-	display.setTextSize(1);             // Normal 1:1 pixel scale
-	display.setTextColor(SSD1306_WHITE);
-	display.setCursor(0,0);             // Start at top-left corner
-	display.print("select: ");	display.print(Ts[t_N]);
-	
-	switch(state)
+	if(millis()>LCD_next_off_t && (Ts[t_N]==179 || Ts[t_N]==199 || Ts[t_N]==249)) //off LCD only if selected: 179 199 249
 	{
-		case s0_NONE: display.print(" "); break;
-		case s1_HEAT:
-		display.print(" Heat ");
-		
-		display.print(((float)millis()-s1_HEAT_start_t0)/1000,1);
-		break;
-		case s2_WAIT:
-		display.print(" Wait: ");
-		//display.setCursor(80,21);
-		display.print(((float)wait_more)/1000,1);
-		break;
-		case s3_COOL: display.print(" Cool"); break;
-		default: display.print(" err"); break;
-	}
-	
-	
-	display.setCursor(0,11);
-	display.print("T now : ");	
-	if( //stabilize numbers on LCD
-	 millis()>T_LCD_last_changed_t+500 || 
-	(millis()>T_LCD_last_changed_t+200 && abs(T-T_LCD_last)>1)
-	)
-	{
-		T_LCD_last_changed_t=millis();
-		T_LCD_last=T;
-		
-		display.print(T,1);
+		display.display();
 	}
 	else
-		display.print(T_LCD_last,1);
-	
-	if(state==s1_HEAT || state==s3_COOL)
 	{
-		display.setCursor(0,22);
-		display.print("T need: ");
-		if(state==s1_HEAT)	display.print(Ts[t_N]);
+		display.setTextSize(1);             // Normal 1:1 pixel scale
+		display.setTextColor(SSD1306_WHITE);
+		display.setCursor(0,0);             // Start at top-left corner
+		display.print("select: ");	display.print(Ts[t_N]);
+		
+		switch(state)
+		{
+			case s0_NONE: display.print(" "); break;
+			case s1_HEAT:
+			display.print(" Heat ");
+			
+			display.print(((float)millis()-s1_HEAT_start_t0)/1000,1);
+			break;
+			case s2_WAIT:
+			display.print(" Wait: ");
+			//display.setCursor(80,21);
+			display.print(((float)wait_more)/1000,1);
+			break;
+			case s3_COOL: display.print(" Cool"); break;
+			default: display.print(" err"); break;
+		}
+		
+		
+		display.setCursor(0,11);
+		display.print("T now : ");	
+		if( //stabilize numbers on LCD
+		 millis()>T_LCD_last_changed_t+500 || 
+		(millis()>T_LCD_last_changed_t+200 && abs(T-T_LCD_last)>1)
+		)
+		{
+			T_LCD_last_changed_t=millis();
+			T_LCD_last=T;
+			
+			display.print(T,1);
+		}
 		else
-		if(state==s3_COOL)	display.print(T_s3_COOL);
-	}
+			display.print(T_LCD_last,1);
+		
+		if(state==s1_HEAT || state==s3_COOL)
+		{
+			display.setCursor(0,22);
+			display.print("T need: ");
+			if(state==s1_HEAT)	display.print(Ts[t_N]);
+			else
+			if(state==s3_COOL)	display.print(T_s3_COOL);
+		}
 
-	display.display();
-}
+		display.display();
+	}
 }
 
 }
